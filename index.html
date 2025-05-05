@@ -1,0 +1,109 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Card Draw Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 flex items-center justify-center h-screen">
+    <div class="bg-white p-6 rounded-lg shadow-lg text-center">
+        <h1 class="text-2xl font-bold mb-4">Card Draw Game</h1>
+        <p class="text-lg mb-4">Draw 3 cards, one at a time!</p>
+        <div id="cardDisplay" class="text-xl font-semibold mb-4 min-h-[40px]">
+            <!-- Card will be displayed here -->
+        </div>
+        <button id="drawButton" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+            Draw Card
+        </button>
+        <p id="status" class="mt-4 text-gray-600"></p>
+    </div>
+
+    <script>
+        // Define suits and ranks
+        const suits = ['Hearts', 'Diamonds', 'Clubs', 'Spades'];
+        const ranks = ['Ace', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'Jack', 'Queen', 'King'];
+
+        // Create deck
+        let deck = [];
+        suits.forEach(suit => {
+            ranks.forEach(rank => {
+                deck.push(`${rank} of ${suit}`);
+            });
+        });
+
+        // Shuffle deck
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+        shuffle(deck);
+
+        let drawCount = 0;
+        const maxDraws = 3;
+        const cardDisplay = document.getElementById('cardDisplay');
+        const drawButton = document.getElementById('drawButton');
+        const status = document.getElementById('status');
+
+        drawButton.addEventListener('click', () => {
+            if (drawCount < maxDraws && deck.length > 0) {
+                drawCount++;
+                const card = deck.pop();
+                cardDisplay.textContent = `Draw ${drawCount}: ${card}`;
+                if (drawCount === maxDraws) {
+                    drawButton.disabled = true;
+                    drawButton.classList.remove('bg-blue-500', 'hover:bg-blue-700');
+                    drawButton.classList.add('bg-gray-400');
+                    status.textContent = 'Game Over! Thanks for playing.';
+                }
+            } else if (deck.length === 0) {
+                cardDisplay.textContent = 'No more cards in the deck!';
+                drawButton.disabled = true;
+                drawButton.classList.remove('bg-blue-500', 'hover:bg-blue-700');
+                drawButton.classList.add('bg-gray-400');
+            }
+        });
+    </script>
+</body>
+</html>
